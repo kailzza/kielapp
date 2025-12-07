@@ -26,24 +26,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.maps.android.compose.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.compose.*
 
 // --- Data Model ---
 data class MapPin(
     val id: String,
-    val position: GeoPoint,
+    val position: LatLng,
     var title: String,
     var description: String,
     var imageUri: String? = null // Storing URI string for native images
 )
 
 // --- Constants for Pangasinan ---
-val PANGASINAN_CENTER = GeoPoint(15.92, 120.35)
+val PANGASINAN_CENTER = LatLng(15.92, 120.35)
+val PANGASINAN_BOUNDS = LatLngBounds(
+    LatLng(15.40, 119.70), // SW
+    LatLng(16.50, 121.10)  // NE
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,38 +62,44 @@ fun MapTrackerScreen() {
     var pins by remember { mutableStateOf(listOf<MapPin>()) }
     var isAddingMode by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var isSearching by remember { mutableStateOf(false) }
     
     // Modal/Dialog State
     var activePin by remember { mutableStateOf<MapPin?>(null) } // Pin being viewed/edited
-    var tempGeoPoint by remember { mutableStateOf<GeoPoint?>(null) } // Location picked for new pin
+    var tempLatLng by remember { mutableStateOf<LatLng?>(null) } // Location picked for new pin
     var showEditDialog by remember { mutableStateOf(false) }
     var showViewDialog by remember { mutableStateOf(false) }
 
     // Map Camera State
-    val cameraState = rememberCameraState {
-        geoPoint = PANGASINAN_CENTER
-        zoom = 10.0
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(PANGASINAN_CENTER, 10f)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         
-        // 1. THE OPENSTREETMAP
-        OpenStreetMap(
+        // 1. THE GOOGLE MAP
+        GoogleMap(
             modifier = Modifier.fillMaxSize(),
-            cameraState = cameraState,
-            onMapClick = { geoPoint ->
+            cameraPositionState = cameraPositionState,
+            properties = MapProperties(
+                isMyLocationEnabled = false, // Set true if you handle permissions
+                latLngBoundsForCameraTarget = PANGASINAN_BOUNDS,
+                minZoomPreference = 9f
+            ),
+            uiSettings = MapUiSettings(zoomControlsEnabled = false),
+            onMapClick = { latLng ->
                 if (isAddingMode) {
-                    tempGeoPoint = geoPoint
-                    activePin = MapPin(System.currentTimeMillis().toString(), geoPoint, "", "")
+                    tempLatLng = latLng
+                    activePin = MapPin(System.currentTimeMillis().toString(), latLng, "", "")
                     showEditDialog = true
                     isAddingMode = false
                 }
             }
-        ){
+        ) {
             // Render Pins
             pins.forEach { pin ->
                 Marker(
-                    state = rememberMarkerState(geoPoint = pin.position),
+                    state = MarkerState(position = pin.position),
                     title = pin.title,
                     snippet = pin.description.take(20) + "...",
                     onClick = {
@@ -130,8 +142,9 @@ fun MapTrackerScreen() {
                     keyboardActions = KeyboardActions(onSearch = {
                         keyboardController?.hide()
                         performSearch(context, searchQuery, scope) { loc ->
-                            cameraState.geoPoint = loc
-                            cameraState.zoom = 14.0
+                            scope.launch {
+                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(loc, 14f))
+                            }
                         }
                     })
                 )
@@ -188,9 +201,9 @@ fun MapTrackerScreen() {
             onDismissRequest = { 
                 showEditDialog = false
                 // If canceling a new pin, reset temp
-                if (tempGeoPoint != null) activePin = null 
+                if (tempLatLng != null) activePin = null 
             },
-            title = { Text(if (tempGeoPoint != null) "New Location" else "Edit Location") },
+            title = { Text(if (tempLatLng != null) "New Location" else "Edit Location") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -211,10 +224,10 @@ fun MapTrackerScreen() {
                 Button(onClick = {
                     val updatedPin = activePin!!.copy(title = title, description = desc)
                     
-                    if (tempGeoPoint != null) {
+                    if (tempLatLng != null) {
                         // Creating new
                         pins = pins + updatedPin
-                        tempGeoPoint = null
+                        tempLatLng = null
                     } else {
                         // Editing existing
                         pins = pins.map { if (it.id == updatedPin.id) updatedPin else it }
@@ -227,7 +240,7 @@ fun MapTrackerScreen() {
             dismissButton = {
                 TextButton(onClick = { 
                     showEditDialog = false 
-                    if (tempGeoPoint != null) activePin = null
+                    if (tempLatLng != null) activePin = null
                 }) {
                     Text("Cancel")
                 }
@@ -253,7 +266,7 @@ fun MapTrackerScreen() {
                         showViewDialog = false
                         showEditDialog = true
                         // Ensure we aren't in "Create" mode
-                        tempGeoPoint = null 
+                        tempLatLng = null 
                     }) {
                         Icon(Icons.Default.Edit, null, tint = Color.Blue)
                     }
@@ -299,7 +312,7 @@ fun performSearch(
     context: Context, 
     query: String, 
     scope: kotlinx.coroutines.CoroutineScope,
-    onResult: (GeoPoint) -> Unit
+    onResult: (LatLng) -> Unit
 ) {
     scope.launch(Dispatchers.IO) {
         try {
@@ -316,7 +329,7 @@ fun performSearch(
             if (!addresses.isNullOrEmpty()) {
                 val location = addresses[0]
                 withContext(Dispatchers.Main) {
-                    onResult(GeoPoint(location.latitude, location.longitude))
+                    onResult(LatLng(location.latitude, location.longitude))
                 }
             }
         } catch (e: Exception) {
