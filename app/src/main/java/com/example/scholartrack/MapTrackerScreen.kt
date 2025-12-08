@@ -21,26 +21,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.LatLngBounds
-import com.google.maps.android.compose.*
+import com.utsman.osmandcompose.OpenStreetMap
+import com.utsman.osmandcompose.Marker
+import com.utsman.osmandcompose.rememberCameraState
+import com.utsman.osmandcompose.rememberMarkerState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.osmdroid.util.GeoPoint
 
 // --- Hardcoded Locations ---
 val scholarshipLocations = mapOf(
-    "1" to LatLng(16.046, 120.332), // STEM Future Leader - Dagupan
-    "2" to LatLng(15.931, 120.575)  // Community Grant - Urdaneta
-)
-
-// --- Constants for Pangasinan ---
-val PANGASINAN_CENTER = LatLng(15.92, 120.35)
-val PANGASINAN_BOUNDS = LatLngBounds(
-    LatLng(15.40, 119.70), // SW
-    LatLng(16.50, 121.10)  // NE
+    "1" to GeoPoint(16.046, 120.332), // STEM Future Leader - Dagupan
+    "2" to GeoPoint(15.931, 120.575)  // Community Grant - Urdaneta
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,36 +47,29 @@ fun MapTrackerScreen(scholarships: List<ScholarshipApp>, onAppClick: (Scholarshi
     var searchQuery by remember { mutableStateOf("") }
 
     // Map Camera State
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(PANGASINAN_CENTER, 10f)
+    val cameraState = rememberCameraState {
+        geoPoint = GeoPoint(15.92, 120.35) // Pangasinan Center
+        zoom = 10.0
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         
-        // 1. THE GOOGLE MAP
-        GoogleMap(
+        // 1. THE OPENSTREETMAP
+        OpenStreetMap(
             modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState,
-            properties = MapProperties(
-                isMyLocationEnabled = false, // Set true if you handle permissions
-                latLngBoundsForCameraTarget = PANGASINAN_BOUNDS,
-                minZoomPreference = 9f
-            ),
-            uiSettings = MapUiSettings(zoomControlsEnabled = false),
-            onMapClick = { /* Disabled */ }
+            cameraState = cameraState
         ) {
             // Render Scholarship Pins
             scholarships.forEach { app ->
                 scholarshipLocations[app.id]?.let { location ->
                     Marker(
-                        state = MarkerState(position = location),
+                        state = rememberMarkerState(geoPoint = location),
                         title = app.name,
-                        snippet = app.provider,
-                        onClick = {
-                            onAppClick(app)
-                            true
-                        }
-                    )
+                        snippet = app.provider
+                    ) { 
+                        // When the marker's info window is clicked, show the dialog
+                        onAppClick(app)
+                    }
                 }
             }
         }
@@ -119,9 +105,8 @@ fun MapTrackerScreen(scholarships: List<ScholarshipApp>, onAppClick: (Scholarshi
                     keyboardActions = KeyboardActions(onSearch = {
                         keyboardController?.hide()
                         performSearch(context, searchQuery, scope) { loc ->
-                            scope.launch {
-                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(loc, 14f))
-                            }
+                            cameraState.geoPoint = loc
+                            cameraState.zoom = 14.0
                         }
                     })
                 )
@@ -140,7 +125,7 @@ fun performSearch(
     context: Context, 
     query: String, 
     scope: kotlinx.coroutines.CoroutineScope,
-    onResult: (LatLng) -> Unit
+    onResult: (GeoPoint) -> Unit
 ) {
     scope.launch(Dispatchers.IO) {
         try {
@@ -153,7 +138,7 @@ fun performSearch(
             if (!addresses.isNullOrEmpty()) {
                 val location = addresses[0]
                 withContext(Dispatchers.Main) {
-                    onResult(LatLng(location.latitude, location.longitude))
+                    onResult(GeoPoint(location.latitude, location.longitude))
                 }
             }
         } catch (e: Exception) {
