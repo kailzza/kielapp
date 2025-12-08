@@ -19,11 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -83,11 +81,12 @@ fun ScholarTrackApp() {
 fun MainAppScreen(onLogout: () -> Unit) {
     // Global State
     var user by remember { mutableStateOf(User("Student", "student@example.com")) }
+    var selectedApp by remember { mutableStateOf<ScholarshipApp?>(null) }
     
     // Mock Data
     val scholarships = remember { mutableStateListOf(
-        ScholarshipApp("1", "STEM Future Leader", "Tech Foundation", "2024-05-15", AppStatus.SUBMITTED),
-        ScholarshipApp("2", "Community Grant", "City Council", "2024-06-01", AppStatus.PENDING)
+        ScholarshipApp("1", "STEM Future Leader", "Tech Foundation", "2024-05-15", AppStatus.SUBMITTED, notes = "This is a note for the STEM scholarship."),
+        ScholarshipApp("2", "Community Grant", "City Council", "2024-06-01", AppStatus.PENDING, notes = "Notes for the community grant.")
     )}
 
     val navController = rememberNavController()
@@ -130,18 +129,22 @@ fun MainAppScreen(onLogout: () -> Unit) {
             startDestination = "dashboard",
             modifier = Modifier.padding(innerPadding).background(Color(0xFFF8FAFC))
         ) {
-            composable("dashboard") { DashboardScreen(user, scholarships) }
-            composable("tracker") { TrackerScreen(scholarships) }
-            composable("map") { MapTrackerScreen() }
+            composable("dashboard") { DashboardScreen(user, scholarships) { app -> selectedApp = app } }
+            composable("tracker") { TrackerScreen(scholarships) { app -> selectedApp = app } }
+            composable("map") { MapTrackerScreen(scholarships) { app -> selectedApp = app } }
             composable("profile") { ProfileScreen(user = user, onLogout = onLogout, onUpdateUser = { user = it }) }
         }
+    }
+
+    if (selectedApp != null) {
+        ScholarshipDetailDialog(app = selectedApp!!, onDismiss = { selectedApp = null })
     }
 }
 
 // --- 3. Screens ---
 
 @Composable
-fun DashboardScreen(user: User, apps: List<ScholarshipApp>) {
+fun DashboardScreen(user: User, apps: List<ScholarshipApp>, onAppClick: (ScholarshipApp) -> Unit) {
     val pendingCount = apps.count { it.status == AppStatus.PENDING || it.status == AppStatus.SUBMITTED }
     val approvedCount = apps.count { it.status == AppStatus.APPROVED }
 
@@ -189,28 +192,46 @@ fun DashboardScreen(user: User, apps: List<ScholarshipApp>) {
         
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(apps) { app ->
-                AppListItem(app)
+                AppListItem(app, onAppClick)
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrackerScreen(apps: MutableList<ScholarshipApp>) {
+fun TrackerScreen(apps: MutableList<ScholarshipApp>, onAppClick: (ScholarshipApp) -> Unit) {
+    var selectedStatus by remember { mutableStateOf<AppStatus?>(null) }
+
+    val filteredApps = if (selectedStatus == null) {
+        apps
+    } else {
+        apps.filter { it.status == selectedStatus }
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("My Applications", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
-        
-        // Simple Status Filter Row
+
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 16.dp)) {
-            item { FilterChip(selected = true, onClick = {}, label = { Text("All") }) }
+            item {
+                FilterChip(
+                    selected = selectedStatus == null,
+                    onClick = { selectedStatus = null },
+                    label = { Text("All") }
+                )
+            }
             items(AppStatus.values()) { status ->
-                 FilterChip(selected = false, onClick = {}, label = { Text(status.label) })
+                FilterChip(
+                    selected = selectedStatus == status,
+                    onClick = { selectedStatus = status },
+                    label = { Text(status.label) }
+                )
             }
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(apps) { app ->
-                AppListItem(app)
+            items(filteredApps) { app ->
+                AppListItem(app, onAppClick)
             }
         }
     }
@@ -235,11 +256,13 @@ fun StatCard(title: String, count: String, color: Color, modifier: Modifier = Mo
 }
 
 @Composable
-fun AppListItem(app: ScholarshipApp) {
+fun AppListItem(app: ScholarshipApp, onAppClick: (ScholarshipApp) -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onAppClick(app) }
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -264,4 +287,27 @@ fun AppListItem(app: ScholarshipApp) {
             }
         }
     }
+}
+
+@Composable
+fun ScholarshipDetailDialog(app: ScholarshipApp, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(app.name) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Provider: ${app.provider}", fontWeight = FontWeight.SemiBold)
+                Text("Deadline: ${app.deadline}")
+                Text("Status: ${app.status.label}")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(app.notes)
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+        containerColor = Color.White
+    )
 }

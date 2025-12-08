@@ -254,7 +254,8 @@ fun ProfileScreen(
                     Text("Save")
                 }
             },
-            dismissButton = { TextButton(onClick = { showCustomization = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showCustomization = false }) { Text("Cancel") } },
+            containerColor = Color.White
         )
     }
 
@@ -291,7 +292,8 @@ fun ProfileScreen(
                 TextButton(onClick = { showNotifications = false }) {
                     Text("Close")
                 }
-            }
+            },
+            containerColor = Color.White
         )
     }
 }
