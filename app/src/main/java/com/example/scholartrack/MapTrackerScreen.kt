@@ -65,11 +65,13 @@ fun MapTrackerScreen(scholarships: List<ScholarshipApp>, onAppClick: (Scholarshi
                     Marker(
                         state = rememberMarkerState(geoPoint = location),
                         title = app.name,
-                        snippet = app.provider
-                    ) { 
-                        // When the marker's info window is clicked, show the dialog
-                        onAppClick(app)
-                    }
+                        snippet = app.provider,
+                        onClick = { 
+                            // This is the correct event handler for a click.
+                            onAppClick(app)
+                            true // Return true to indicate the click is handled
+                        }
+                    )
                 }
             }
         }
