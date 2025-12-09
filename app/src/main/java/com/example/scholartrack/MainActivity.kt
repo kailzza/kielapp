@@ -26,6 +26,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.utsman.osmandcompose.rememberCameraState
+import org.osmdroid.util.GeoPoint
 
 // --- 1. Data Models (Equivalent to types.ts) ---
 
@@ -90,6 +92,13 @@ fun MainAppScreen(onLogout: () -> Unit) {
     )}
 
     val navController = rememberNavController()
+
+    // Hoist the camera state here
+    val cameraState = rememberCameraState()
+    LaunchedEffect(Unit) {
+        cameraState.geoPoint = GeoPoint(15.92, 120.35) // Pangasinan Center
+        cameraState.zoom = 10.0
+    }
     
     Scaffold(
         bottomBar = {
@@ -131,7 +140,7 @@ fun MainAppScreen(onLogout: () -> Unit) {
         ) {
             composable("dashboard") { DashboardScreen(user, scholarships) { app -> selectedApp = app } }
             composable("tracker") { TrackerScreen(scholarships) { app -> selectedApp = app } }
-            composable("map") { MapTrackerScreen(scholarships) { app -> selectedApp = app } }
+            composable("map") { MapTrackerScreen(scholarships, cameraState) { app -> selectedApp = app } }
             composable("profile") { ProfileScreen(user = user, onLogout = onLogout, onUpdateUser = { user = it }) }
         }
     }

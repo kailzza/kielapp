@@ -1,6 +1,7 @@
 package com.example.scholartrack
 
 import android.content.Context
+import android.graphics.PorterDuff
 import android.location.Geocoder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,15 +16,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import com.utsman.osmandcompose.CameraState
 import com.utsman.osmandcompose.OpenStreetMap
 import com.utsman.osmandcompose.Marker
-import com.utsman.osmandcompose.rememberCameraState
 import com.utsman.osmandcompose.rememberMarkerState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -38,7 +41,11 @@ val scholarshipLocations = mapOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapTrackerScreen(scholarships: List<ScholarshipApp>, onAppClick: (ScholarshipApp) -> Unit) {
+fun MapTrackerScreen(
+    scholarships: List<ScholarshipApp>,
+    cameraState: CameraState,
+    onAppClick: (ScholarshipApp) -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -46,10 +53,14 @@ fun MapTrackerScreen(scholarships: List<ScholarshipApp>, onAppClick: (Scholarshi
     // State
     var searchQuery by remember { mutableStateOf("") }
 
-    // Map Camera State
-    val cameraState = rememberCameraState {
-        geoPoint = GeoPoint(15.92, 120.35) // Pangasinan Center
-        zoom = 10.0
+    // Create a red marker icon
+    val redMarkerIcon = remember {
+        val resourceId = context.resources.getIdentifier("marker_default", "drawable", context.packageName)
+        val drawable = ContextCompat.getDrawable(context, resourceId)
+        drawable?.mutate()?.apply {
+            setColorFilter(Color.Red.toArgb(), PorterDuff.Mode.SRC_IN)
+        }
+        drawable
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -66,8 +77,8 @@ fun MapTrackerScreen(scholarships: List<ScholarshipApp>, onAppClick: (Scholarshi
                         state = rememberMarkerState(geoPoint = location),
                         title = app.name,
                         snippet = app.provider,
+                        icon = redMarkerIcon, // Use the red marker
                         onClick = { 
-                            // This is the correct event handler for a click.
                             onAppClick(app)
                             true // Return true to indicate the click is handled
                         }
