@@ -70,8 +70,11 @@ class MainActivity : ComponentActivity() {
 fun ScholarTrackApp() {
     var isAuthenticated by remember { mutableStateOf(false) }
 
+    // Stabilize the onLogout lambda to prevent recompositions
+    val onLogout = remember { { isAuthenticated = false } }
+
     if (isAuthenticated) {
-        MainAppScreen(onLogout = { isAuthenticated = false })
+        MainAppScreen(onLogout = onLogout)
     } else {
         WelcomeScreen(onLoginClicked = { isAuthenticated = true })
     }
@@ -96,8 +99,11 @@ fun MainAppScreen(onLogout: () -> Unit) {
     // Hoist the camera state here
     val cameraState = rememberCameraState()
     LaunchedEffect(Unit) {
-        cameraState.geoPoint = GeoPoint(15.92, 120.35) // Pangasinan Center
-        cameraState.zoom = 10.0
+        // Only set the initial position if it hasn't been set yet (i.e., it's at the default 0,0)
+        if (cameraState.geoPoint.latitude == 0.0 && cameraState.geoPoint.longitude == 0.0) {
+            cameraState.geoPoint = GeoPoint(15.92, 120.35) // Pangasinan Center
+            cameraState.zoom = 10.0
+        }
     }
 
     // Stabilize lambdas to prevent unnecessary recompositions

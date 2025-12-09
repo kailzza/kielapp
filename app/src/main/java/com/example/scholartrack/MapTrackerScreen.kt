@@ -79,6 +79,10 @@ fun MapTrackerScreen(
                         snippet = app.provider,
                         icon = redMarkerIcon, // Use the red marker
                         onClick = { 
+                            // Zoom in on the clicked pin
+                            cameraState.geoPoint = location
+                            cameraState.zoom = 14.0
+                            // Show the scholarship detail dialog
                             onAppClick(app)
                             true // Return true to indicate the click is handled
                         }
