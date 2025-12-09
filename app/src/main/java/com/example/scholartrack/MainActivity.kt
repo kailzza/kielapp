@@ -99,6 +99,11 @@ fun MainAppScreen(onLogout: () -> Unit) {
         cameraState.geoPoint = GeoPoint(15.92, 120.35) // Pangasinan Center
         cameraState.zoom = 10.0
     }
+
+    // Stabilize lambdas to prevent unnecessary recompositions
+    val onAppClick = remember<(ScholarshipApp) -> Unit> { { app -> selectedApp = app } }
+    val onUpdateUser = remember<(User) -> Unit> { { updatedUser -> user = updatedUser } }
+    val onDialogDismiss = remember { { selectedApp = null } }
     
     Scaffold(
         bottomBar = {
@@ -138,15 +143,15 @@ fun MainAppScreen(onLogout: () -> Unit) {
             startDestination = "dashboard",
             modifier = Modifier.padding(innerPadding).background(Color(0xFFF8FAFC))
         ) {
-            composable("dashboard") { DashboardScreen(user, scholarships) { app -> selectedApp = app } }
-            composable("tracker") { TrackerScreen(scholarships) { app -> selectedApp = app } }
-            composable("map") { MapTrackerScreen(scholarships, cameraState) { app -> selectedApp = app } }
-            composable("profile") { ProfileScreen(user = user, onLogout = onLogout, onUpdateUser = { user = it }) }
+            composable("dashboard") { DashboardScreen(user, scholarships, onAppClick) }
+            composable("tracker") { TrackerScreen(scholarships, onAppClick) }
+            composable("map") { MapTrackerScreen(scholarships, cameraState, onAppClick) }
+            composable("profile") { ProfileScreen(user = user, onLogout = onLogout, onUpdateUser = onUpdateUser) }
         }
     }
 
     if (selectedApp != null) {
-        ScholarshipDetailDialog(app = selectedApp!!, onDismiss = { selectedApp = null })
+        ScholarshipDetailDialog(app = selectedApp!!, onDismiss = onDialogDismiss)
     }
 }
 

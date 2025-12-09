@@ -60,6 +60,11 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     implementation("tech.utsmankece:osm-android-compose:0.0.5")
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Networking
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
