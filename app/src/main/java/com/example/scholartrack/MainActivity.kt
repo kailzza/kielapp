@@ -90,19 +90,21 @@ fun MainAppScreen(onLogout: () -> Unit) {
     
     // Mock Data
     val scholarships = remember { mutableStateListOf(
-        ScholarshipApp("1", "STEM Future Leader", "Tech Foundation", "2024-05-15", AppStatus.SUBMITTED, notes = "This is a note for the STEM scholarship."),
-        ScholarshipApp("2", "Community Grant", "City Council", "2024-06-01", AppStatus.PENDING, notes = "Notes for the community grant.")
+        ScholarshipApp("1", "PPCP", "Lingayen", "2024-05-15", AppStatus.SUBMITTED, notes = "This is a note for the PPCP scholarship."),
+        ScholarshipApp("2", "Bautista Community Grant", "City Hall", "2024-06-01", AppStatus.PENDING, notes = "Notes for the community grant.")
     )}
 
     val navController = rememberNavController()
 
     // Hoist the camera state here
     val cameraState = rememberCameraState()
+    var isMapInitialized by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
-        // Only set the initial position if it hasn't been set yet (i.e., it's at the default 0,0)
-        if (cameraState.geoPoint.latitude == 0.0 && cameraState.geoPoint.longitude == 0.0) {
+        if (!isMapInitialized) {
             cameraState.geoPoint = GeoPoint(15.92, 120.35) // Pangasinan Center
             cameraState.zoom = 10.0
+            isMapInitialized = true
         }
     }
 

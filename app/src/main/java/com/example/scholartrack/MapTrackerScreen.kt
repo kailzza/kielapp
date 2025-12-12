@@ -35,8 +35,8 @@ import org.osmdroid.util.GeoPoint
 
 // --- Hardcoded Locations ---
 val scholarshipLocations = mapOf(
-    "1" to GeoPoint(16.046, 120.332), // STEM Future Leader - Dagupan
-    "2" to GeoPoint(15.931, 120.575)  // Community Grant - Urdaneta
+    "1" to GeoPoint(15.7909, 120.3220), // PPCP - Lingayen
+    "2" to GeoPoint(15.8115, 120.4873)  // Bautista Community Grant - Bautista
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
