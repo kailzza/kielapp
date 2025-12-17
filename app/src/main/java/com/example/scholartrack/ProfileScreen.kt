@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun ProfileScreen(
-    user: User,
+    applicant: Applicant, // Update parameter type
     onLogout: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF8FAFC))) {
@@ -40,7 +40,7 @@ fun ProfileScreen(
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(user.themeColor.copy(alpha = 0.2f), user.themeColor.copy(alpha = 0.6f))
+                                colors = listOf(applicant.themeColor.copy(alpha = 0.2f), applicant.themeColor.copy(alpha = 0.6f))
                             )
                         ),
                     contentAlignment = Alignment.Center
@@ -55,8 +55,19 @@ fun ProfileScreen(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                Text(user.username, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                Text(user.email, fontSize = 14.sp, color = Color(0xFF64748B))
+                // Display Name
+                Text(
+                    text = applicant.username,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                // Explicitly show 'Applicant' tag
+                Text(
+                    text = "Verified Applicant", 
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
 
@@ -69,9 +80,15 @@ fun ProfileScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column {
-                    ProfileMenuItem(icon = Icons.Default.Email, label = "Email", value = user.email)
+                    ProfileMenuItem(icon = Icons.Default.Email, label = "Email", value = applicant.email)
                     Divider(color = Color(0xFFF1F5F9))
-                    ProfileMenuItem(icon = Icons.Default.Person, label = "Username", value = user.username)
+                    
+                    // Show Role as 'Applicant'
+                    ProfileMenuItem(
+                        icon = Icons.Default.Person, 
+                        label = "Account Type", 
+                        value = applicant.role.replaceFirstChar { it.uppercase() } // Displays "Applicant"
+                    )
                 }
             }
 

@@ -53,12 +53,12 @@ data class ScholarshipApp(
     val longitude: Double = 0.0
 )
 
-// Updated User data class
-data class User(
+// 1. Rename 'User' to 'Applicant'
+data class Applicant( 
     val id: String,
-    val username: String, // Combined f_name + l_name
+    val username: String,
     val email: String,
-    val role: String = "student",
+    val role: String = "applicant", // Default role is now 'applicant'
     val themeColor: Color = Color(0xFF2563EB),
     val avatarUri: String? = null
 )
@@ -78,18 +78,21 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
     val navController = rememberNavController()
-    var currentUser by remember { mutableStateOf<User?>(null) }
+    // 2. Update state variable
+    var currentApplicant by remember { mutableStateOf<Applicant?>(null) } 
 
     NavHost(navController = navController, startDestination = "login") {
         composable("login") {
             WelcomeScreen(
                 authViewModel = authViewModel,
                 onLoginSuccess = { response -> 
-                    currentUser = User(
+                    // 3. Create the Applicant object
+                    currentApplicant = Applicant(
                         id = response.userId ?: "0",
                         username = "${response.firstName} ${response.lastName}",
-                        email = response.email ?: "student@example.com", 
-                        role = response.role ?: "student"
+                        email = response.email ?: "applicant@example.com",
+                        // Force the role to be 'applicant' if the backend sends 'student'
+                        role = if (response.role == "student") "applicant" else (response.role ?: "applicant")
                     )
                     navController.navigate("main_app") { popUpTo("login") { inclusive = true } } 
                 },
@@ -104,15 +107,13 @@ fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
             )
         }
         composable("main_app") {
-            if (currentUser != null) {
-                MainAppScreen(user = currentUser!!, onLogout = {
+            if (currentApplicant != null) {
+                MainAppScreen(applicant = currentApplicant!!, onLogout = {
                     authViewModel.resetState()
-                    currentUser = null // Clear user
+                    currentApplicant = null // Clear user
                     navController.navigate("login") { popUpTo("main_app") { inclusive = true } }
                 })
             } else {
-                // This can happen if the app is killed and restarted. 
-                // For now, just show a loading spinner and send the user back to login.
                 CircularProgressIndicator()
                 LaunchedEffect(Unit) {
                      navController.navigate("login") { popUpTo("main_app") { inclusive = true } }
@@ -125,24 +126,22 @@ fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppScreen(
-    user: User, // Receive the specific user
+    applicant: Applicant, // Update parameter name
     onLogout: () -> Unit, 
     scholarshipViewModel: ScholarshipViewModel = viewModel()
 ) {
     var selectedApp by remember { mutableStateOf<ScholarshipApp?>(null) }
     
-    // Live Data
     val scholarships by scholarshipViewModel.scholarships.collectAsState()
     val errorMessage by scholarshipViewModel.errorMessage.collectAsState()
 
-    // Fetch data specific to this user, only when the user ID changes
-    LaunchedEffect(user.id) {
-        scholarshipViewModel.fetchScholarships(user.id)
+    // Update fetch call
+    LaunchedEffect(applicant.id) {
+        scholarshipViewModel.fetchScholarships(applicant.id)
     }
 
     val innerNavController = rememberNavController()
 
-    // Hoist the camera state here
     val cameraState = rememberCameraState()
     var isMapInitialized by remember { mutableStateOf(false) }
 
@@ -195,14 +194,21 @@ fun MainAppScreen(
             startDestination = "dashboard",
             modifier = Modifier.padding(innerPadding).background(Color(0xFFF8FAFC))
         ) {
-            composable("dashboard") { DashboardScreen(user, scholarships, onAppClick) }
+            composable("dashboard") { 
+                DashboardScreen(
+                    applicant = applicant, 
+                    apps = scholarships, 
+                    onAppClick = onAppClick,
+                    onRefresh = { scholarshipViewModel.fetchScholarships(applicant.id) } 
+                )
+            }
             composable("tracker") { TrackerScreen(scholarships.toMutableList(), onAppClick) }
             composable("map") { MapTrackerScreen(scholarships, cameraState, onAppClick) }
-            composable("profile") { ProfileScreen(user = user, onLogout = onLogout) }
+            composable("profile") { ProfileScreen(applicant = applicant, onLogout = onLogout) }
         }
 
         errorMessage?.let {
-            Snackbar(action = { Button(onClick = { scholarshipViewModel.fetchScholarships(user.id) }) { Text("Retry") } }) {
+            Snackbar(action = { Button(onClick = { scholarshipViewModel.fetchScholarships(applicant.id) }) { Text("Retry") } }) {
                 Text(it)
             }
         }
@@ -216,13 +222,16 @@ fun MainAppScreen(
 // --- 3. Screens ---
 
 @Composable
-fun DashboardScreen(user: User, apps: List<ScholarshipApp>, onAppClick: (ScholarshipApp) -> Unit) {
+fun DashboardScreen(applicant: Applicant, apps: List<ScholarshipApp>, onAppClick: (ScholarshipApp) -> Unit, onRefresh: () -> Unit) {
     val pendingCount = apps.count { it.status == AppStatus.PENDING || it.status == AppStatus.SUBMITTED }
     val approvedCount = apps.count { it.status == AppStatus.APPROVED }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         // Header
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -230,12 +239,16 @@ fun DashboardScreen(user: User, apps: List<ScholarshipApp>, onAppClick: (Scholar
                     .background(Color(0xFF1E293B)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(user.username.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                Text(applicant.username.take(1), color = Color.White, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text("Hi, ${user.username}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Hi, ${applicant.username}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
                 Text("Your progress", color = Color.Gray)
+            }
+            
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh Data")
             }
         }
 
@@ -308,8 +321,6 @@ fun TrackerScreen(apps: MutableList<ScholarshipApp>, onAppClick: (ScholarshipApp
         }
     }
 }
-
-
 
 // --- 4. Helper Components ---
 
