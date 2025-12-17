@@ -20,12 +20,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.google.gson.annotations.SerializedName
 import com.utsman.osmandcompose.rememberCameraState
 import org.osmdroid.util.GeoPoint
 
@@ -39,12 +42,12 @@ enum class AppStatus(val label: String, val color: Color) {
 }
 
 data class ScholarshipApp(
-    val id: String,
-    val name: String,
-    val provider: String,
-    val deadline: String,
-    var status: AppStatus,
-    val notes: String = ""
+    @SerializedName("scholarship_id") val id: String,
+    @SerializedName("scholarship_name") val name: String,
+    @SerializedName("provider_name") val provider: String,
+    @SerializedName("deadline_date") val deadline: String,
+    @SerializedName("application_status") var status: AppStatus,
+    @SerializedName("scholarship_notes") val notes: String = ""
 )
 
 data class User(
@@ -67,34 +70,52 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScholarTrackApp() {
-    var isAuthenticated by remember { mutableStateOf(false) }
+fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
+    val navController = rememberNavController()
 
-    // Stabilize the onLogout lambda to prevent recompositions
-    val onLogout = remember { { isAuthenticated = false } }
-
-    if (isAuthenticated) {
-        MainAppScreen(onLogout = onLogout)
-    } else {
-        WelcomeScreen(onLoginClicked = { isAuthenticated = true })
+    NavHost(navController = navController, startDestination = "login") {
+        composable("login") {
+            WelcomeScreen(
+                authViewModel = authViewModel,
+                onLoginSuccess = { navController.navigate("main_app") { popUpTo("login") { inclusive = true } } },
+                onNavigateToSignUp = { navController.navigate("signup") }
+            )
+        }
+        composable("signup") {
+            SignUpScreen(
+                authViewModel = authViewModel,
+                onSignUpSuccess = { navController.navigate("main_app") { popUpTo("login") { inclusive = true } } },
+                onNavigateToLogin = { navController.navigate("login") }
+            )
+        }
+        composable("main_app") {
+            MainAppScreen(onLogout = {
+                authViewModel.resetState()
+                navController.navigate("login") { popUpTo("main_app") { inclusive = true } }
+            })
+        }
     }
 }
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainAppScreen(onLogout: () -> Unit) {
+fun MainAppScreen(onLogout: () -> Unit, scholarshipViewModel: ScholarshipViewModel = viewModel()) {
     // Global State
     var user by remember { mutableStateOf(User("Student", "student@example.com")) }
     var selectedApp by remember { mutableStateOf<ScholarshipApp?>(null) }
     
-    // Mock Data
-    val scholarships = remember { mutableStateListOf(
-        ScholarshipApp("1", "PPCP", "Lingayen", "2024-05-15", AppStatus.SUBMITTED, notes = "This is a note for the PPCP scholarship."),
-        ScholarshipApp("2", "Bautista Community Grant", "City Hall", "2024-06-01", AppStatus.PENDING, notes = "Notes for the community grant.")
-    )}
+    // Live Data
+    val scholarships by scholarshipViewModel.scholarships.collectAsState()
+    val errorMessage by scholarshipViewModel.errorMessage.collectAsState()
 
-    val navController = rememberNavController()
+    // Fetch data when the screen is first created
+    LaunchedEffect(Unit) {
+        scholarshipViewModel.fetchScholarships()
+    }
+
+    // This NavController is for the inner navigation (bottom bar)
+    val innerNavController = rememberNavController()
 
     // Hoist the camera state here
     val cameraState = rememberCameraState()
@@ -116,45 +137,51 @@ fun MainAppScreen(onLogout: () -> Unit) {
     Scaffold(
         bottomBar = {
             NavigationBar(containerColor = Color.White) {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Dashboard, contentDescription = null) },
                     label = { Text("Home") },
                     selected = currentRoute == "dashboard",
-                    onClick = { navController.navigate("dashboard") }
+                    onClick = { innerNavController.navigate("dashboard") }
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.School, contentDescription = null) },
                     label = { Text("Tracker") },
                     selected = currentRoute == "tracker",
-                    onClick = { navController.navigate("tracker") }
+                    onClick = { innerNavController.navigate("tracker") }
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Map, contentDescription = null) },
                     label = { Text("Map") },
                     selected = currentRoute == "map",
-                    onClick = { navController.navigate("map") }
+                    onClick = { innerNavController.navigate("map") }
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = null) },
                     label = { Text("Profile") },
                     selected = currentRoute == "profile",
-                    onClick = { navController.navigate("profile") }
+                    onClick = { innerNavController.navigate("profile") }
                 )
             }
         }
     ) { innerPadding ->
         NavHost(
-            navController = navController,
+            navController = innerNavController,
             startDestination = "dashboard",
             modifier = Modifier.padding(innerPadding).background(Color(0xFFF8FAFC))
         ) {
             composable("dashboard") { DashboardScreen(user, scholarships, onAppClick) }
-            composable("tracker") { TrackerScreen(scholarships, onAppClick) }
+            composable("tracker") { TrackerScreen(scholarships.toMutableList(), onAppClick) }
             composable("map") { MapTrackerScreen(scholarships, cameraState, onAppClick) }
             composable("profile") { ProfileScreen(user = user, onLogout = onLogout, onUpdateUser = onUpdateUser) }
+        }
+
+        errorMessage?.let {
+            Snackbar(action = { Button(onClick = { scholarshipViewModel.fetchScholarships() }) { Text("Retry") } }) {
+                Text(it)
+            }
         }
     }
 
@@ -185,7 +212,7 @@ fun DashboardScreen(user: User, apps: List<ScholarshipApp>, onAppClick: (Scholar
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text("Hi, ${user.username}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                Text("Your progress", color = Color(0xFF64748B))
+                Text("Your progress", color = Color.Gray)
             }
         }
 
@@ -332,4 +359,69 @@ fun ScholarshipDetailDialog(app: ScholarshipApp, onDismiss: () -> Unit) {
         },
         containerColor = Color.White
     )
+}
+
+@Composable
+fun WelcomeScreen(authViewModel: AuthViewModel, onLoginSuccess: () -> Unit, onNavigateToSignUp: () -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    val authState by authViewModel.authState.collectAsState()
+    val errorMessage by authViewModel.errorMessage.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(24.dp)
+            .imePadding(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.School,
+            contentDescription = "BrightPath Logo",
+            modifier = Modifier.size(100.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "BrightPath",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(48.dp))
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") }
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation()
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        if (authState == AuthState.LOADING) {
+            CircularProgressIndicator()
+        } else {
+            Button(onClick = { authViewModel.login(email, password) }) {
+                Text(text = "Login")
+            }
+            errorMessage?.let {
+                Text(it, color = Color.Red, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
+
+        TextButton(onClick = onNavigateToSignUp) {
+            Text("Don't have an account? Sign up")
+        }
+    }
+
+    LaunchedEffect(authState) {
+        if (authState == AuthState.AUTHENTICATED) {
+            onLoginSuccess()
+        }
+    }
 }

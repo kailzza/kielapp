@@ -3,19 +3,26 @@ package com.example.scholartrack
 import com.google.gson.GsonBuilder
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 
 // --- Retrofit API Service ---
 
 interface ApiService {
-    @GET("scholarships.php") // Example endpoint, replace with your actual endpoint
+    @GET("scholarships.php") // Example endpoint for getting scholarships
     suspend fun getScholarships(): List<ScholarshipApp>
+
+    @POST("login.php") // Endpoint for user login
+    suspend fun login(@Body request: LoginRequest): AuthResponse
+
+    @POST("signup.php") // Endpoint for user registration
+    suspend fun signup(@Body request: SignUpRequest): AuthResponse
 }
 
 object ApiClient {
-    // IMPORTANT: Replace "YOUR_SERVER_IP" with the local IP address of your XAMPP server.
-    // Example: "http://192.168.1.5/your_api_folder/"
-    private const val BASE_URL = "http://YOUR_SERVER_IP/"
+    // Using the IP address of your XAMPP server.
+    private const val BASE_URL = "http://192.168.254.100/"
 
     val apiService: ApiService by lazy {
         val gson = GsonBuilder()
