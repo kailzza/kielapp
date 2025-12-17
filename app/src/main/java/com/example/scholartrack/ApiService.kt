@@ -22,7 +22,7 @@ interface ApiService {
 }
 
 object ApiClient {
-    // Using the IP address of your XAMPP server.
+    // Using the correct IP address of your XAMPP server.
     private const val BASE_URL = "http://192.168.254.115/scholarapi/"
 
     val apiService: ApiService by lazy {

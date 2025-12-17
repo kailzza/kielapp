@@ -3,7 +3,6 @@ package com.example.scholartrack
 import android.content.Context
 import android.graphics.PorterDuff
 import android.location.Geocoder
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -14,30 +13,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.utsman.osmandcompose.CameraState
-import com.utsman.osmandcompose.OpenStreetMap
 import com.utsman.osmandcompose.Marker
+import com.utsman.osmandcompose.OpenStreetMap
 import com.utsman.osmandcompose.rememberMarkerState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.osmdroid.util.GeoPoint
-
-// --- Hardcoded Locations ---
-val scholarshipLocations = mapOf(
-    "1" to GeoPoint(15.7909, 120.3220), // PPCP - Lingayen
-    "2" to GeoPoint(15.8115, 120.4873)  // Bautista Community Grant - Bautista
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,11 +39,8 @@ fun MapTrackerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
-
-    // State
     var searchQuery by remember { mutableStateOf("") }
 
-    // Create a red marker icon
     val redMarkerIcon = remember {
         val resourceId = context.resources.getIdentifier("marker_default", "drawable", context.packageName)
         val drawable = ContextCompat.getDrawable(context, resourceId)
@@ -65,33 +52,33 @@ fun MapTrackerScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         
-        // 1. THE OPENSTREETMAP
         OpenStreetMap(
             modifier = Modifier.fillMaxSize(),
             cameraState = cameraState
         ) {
-            // Render Scholarship Pins
+            // --- UPDATED LOGIC: Loop through API data directly ---
             scholarships.forEach { app ->
-                scholarshipLocations[app.id]?.let { location ->
+                // Check if coordinates are valid (not 0.0, 0.0)
+                if (app.latitude != 0.0 && app.longitude != 0.0) {
+                    val location = GeoPoint(app.latitude, app.longitude)
+                    
                     Marker(
                         state = rememberMarkerState(geoPoint = location),
                         title = app.name,
                         snippet = app.provider,
-                        icon = redMarkerIcon, // Use the red marker
+                        icon = redMarkerIcon,
                         onClick = { 
-                            // Zoom in on the clicked pin
                             cameraState.geoPoint = location
-                            cameraState.zoom = 14.0
-                            // Show the scholarship detail dialog
+                            cameraState.zoom = 15.0 // Slightly closer zoom
                             onAppClick(app)
-                            true // Return true to indicate the click is handled
+                            true 
                         }
                     )
                 }
             }
         }
 
-        // 2. SEARCH BAR (Top)
+        // Search Bar (No changes needed here, keeping your existing code)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -136,6 +123,8 @@ fun MapTrackerScreen(
         }
     }
 }
+
+// ... performSearch function remains the same ...
 
 // --- Helper Logic for Search ---
 fun performSearch(

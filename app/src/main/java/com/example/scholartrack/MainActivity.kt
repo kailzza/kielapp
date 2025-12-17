@@ -48,7 +48,9 @@ data class ScholarshipApp(
     @SerializedName("provider_name") val provider: String,
     @SerializedName("deadline_date") val deadline: String,
     @SerializedName("application_status") var status: AppStatus,
-    @SerializedName("scholarship_notes") val notes: String = ""
+    @SerializedName("scholarship_notes") val notes: String = "",
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0
 )
 
 // Updated User data class
@@ -86,7 +88,7 @@ fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
                     currentUser = User(
                         id = response.userId ?: "0",
                         username = "${response.firstName} ${response.lastName}",
-                        email = "", // You might want to pass email back from PHP too
+                        email = response.email ?: "student@example.com", 
                         role = response.role ?: "student"
                     )
                     navController.navigate("main_app") { popUpTo("login") { inclusive = true } } 
@@ -153,7 +155,6 @@ fun MainAppScreen(
     }
 
     val onAppClick = remember<(ScholarshipApp) -> Unit> { { app -> selectedApp = app } }
-    val onUpdateUser = remember<(User) -> Unit> { { updatedUser -> /* This is now handled by the login flow */ } }
     val onDialogDismiss = remember { { selectedApp = null } }
     
     Scaffold(
@@ -197,7 +198,7 @@ fun MainAppScreen(
             composable("dashboard") { DashboardScreen(user, scholarships, onAppClick) }
             composable("tracker") { TrackerScreen(scholarships.toMutableList(), onAppClick) }
             composable("map") { MapTrackerScreen(scholarships, cameraState, onAppClick) }
-            composable("profile") { ProfileScreen(user = user, onLogout = onLogout, onUpdateUser = onUpdateUser) }
+            composable("profile") { ProfileScreen(user = user, onLogout = onLogout) }
         }
 
         errorMessage?.let {
