@@ -22,6 +22,10 @@ class AuthViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage = _errorMessage.asStateFlow()
 
+    // Add this to hold the successful login response
+    private val _loginResponse = MutableStateFlow<AuthResponse?>(null)
+    val loginResponse = _loginResponse.asStateFlow()
+
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             _authState.value = AuthState.LOADING
@@ -29,6 +33,7 @@ class AuthViewModel : ViewModel() {
                 val request = LoginRequest(email, pass)
                 val response = ApiClient.apiService.login(request)
                 if (response.status == "success") {
+                    _loginResponse.value = response // Store the response
                     _authState.value = AuthState.AUTHENTICATED
                 } else {
                     _errorMessage.value = response.message
@@ -64,5 +69,6 @@ class AuthViewModel : ViewModel() {
     fun resetState() {
         _authState.value = AuthState.IDLE
         _errorMessage.value = null
+        _loginResponse.value = null // Reset on logout
     }
 }

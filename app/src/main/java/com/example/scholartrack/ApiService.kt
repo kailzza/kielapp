@@ -6,12 +6,13 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 // --- Retrofit API Service ---
 
 interface ApiService {
-    @GET("scholarships.php") // Example endpoint for getting scholarships
-    suspend fun getScholarships(): List<ScholarshipApp>
+    @GET("scholarships.php") 
+    suspend fun getScholarships(@Query("user_id") userId: String): List<ScholarshipApp>
 
     @POST("login.php") // Endpoint for user login
     suspend fun login(@Body request: LoginRequest): AuthResponse
@@ -22,7 +23,7 @@ interface ApiService {
 
 object ApiClient {
     // Using the IP address of your XAMPP server.
-    private const val BASE_URL = "http://192.168.254.100/"
+    private const val BASE_URL = "http://192.168.254.115/scholarapi/"
 
     val apiService: ApiService by lazy {
         val gson = GsonBuilder()

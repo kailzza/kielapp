@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -50,9 +51,12 @@ data class ScholarshipApp(
     @SerializedName("scholarship_notes") val notes: String = ""
 )
 
+// Updated User data class
 data class User(
-    val username: String,
+    val id: String,
+    val username: String, // Combined f_name + l_name
     val email: String,
+    val role: String = "student",
     val themeColor: Color = Color(0xFF2563EB),
     val avatarUri: String? = null
 )
@@ -72,49 +76,68 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
     val navController = rememberNavController()
+    var currentUser by remember { mutableStateOf<User?>(null) }
 
     NavHost(navController = navController, startDestination = "login") {
         composable("login") {
             WelcomeScreen(
                 authViewModel = authViewModel,
-                onLoginSuccess = { navController.navigate("main_app") { popUpTo("login") { inclusive = true } } },
+                onLoginSuccess = { response -> 
+                    currentUser = User(
+                        id = response.userId ?: "0",
+                        username = "${response.firstName} ${response.lastName}",
+                        email = "", // You might want to pass email back from PHP too
+                        role = response.role ?: "student"
+                    )
+                    navController.navigate("main_app") { popUpTo("login") { inclusive = true } } 
+                },
                 onNavigateToSignUp = { navController.navigate("signup") }
             )
         }
         composable("signup") {
-            SignUpScreen(
+             SignUpScreen(
                 authViewModel = authViewModel,
                 onSignUpSuccess = { navController.navigate("main_app") { popUpTo("login") { inclusive = true } } },
                 onNavigateToLogin = { navController.navigate("login") }
             )
         }
         composable("main_app") {
-            MainAppScreen(onLogout = {
-                authViewModel.resetState()
-                navController.navigate("login") { popUpTo("main_app") { inclusive = true } }
-            })
+            if (currentUser != null) {
+                MainAppScreen(user = currentUser!!, onLogout = {
+                    authViewModel.resetState()
+                    currentUser = null // Clear user
+                    navController.navigate("login") { popUpTo("main_app") { inclusive = true } }
+                })
+            } else {
+                // This can happen if the app is killed and restarted. 
+                // For now, just show a loading spinner and send the user back to login.
+                CircularProgressIndicator()
+                LaunchedEffect(Unit) {
+                     navController.navigate("login") { popUpTo("main_app") { inclusive = true } }
+                }
+            }
         }
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainAppScreen(onLogout: () -> Unit, scholarshipViewModel: ScholarshipViewModel = viewModel()) {
-    // Global State
-    var user by remember { mutableStateOf(User("Student", "student@example.com")) }
+fun MainAppScreen(
+    user: User, // Receive the specific user
+    onLogout: () -> Unit, 
+    scholarshipViewModel: ScholarshipViewModel = viewModel()
+) {
     var selectedApp by remember { mutableStateOf<ScholarshipApp?>(null) }
     
     // Live Data
     val scholarships by scholarshipViewModel.scholarships.collectAsState()
     val errorMessage by scholarshipViewModel.errorMessage.collectAsState()
 
-    // Fetch data when the screen is first created
-    LaunchedEffect(Unit) {
-        scholarshipViewModel.fetchScholarships()
+    // Fetch data specific to this user, only when the user ID changes
+    LaunchedEffect(user.id) {
+        scholarshipViewModel.fetchScholarships(user.id)
     }
 
-    // This NavController is for the inner navigation (bottom bar)
     val innerNavController = rememberNavController()
 
     // Hoist the camera state here
@@ -129,9 +152,8 @@ fun MainAppScreen(onLogout: () -> Unit, scholarshipViewModel: ScholarshipViewMod
         }
     }
 
-    // Stabilize lambdas to prevent unnecessary recompositions
     val onAppClick = remember<(ScholarshipApp) -> Unit> { { app -> selectedApp = app } }
-    val onUpdateUser = remember<(User) -> Unit> { { updatedUser -> user = updatedUser } }
+    val onUpdateUser = remember<(User) -> Unit> { { updatedUser -> /* This is now handled by the login flow */ } }
     val onDialogDismiss = remember { { selectedApp = null } }
     
     Scaffold(
@@ -179,7 +201,7 @@ fun MainAppScreen(onLogout: () -> Unit, scholarshipViewModel: ScholarshipViewMod
         }
 
         errorMessage?.let {
-            Snackbar(action = { Button(onClick = { scholarshipViewModel.fetchScholarships() }) { Text("Retry") } }) {
+            Snackbar(action = { Button(onClick = { scholarshipViewModel.fetchScholarships(user.id) }) { Text("Retry") } }) {
                 Text(it)
             }
         }
@@ -362,11 +384,16 @@ fun ScholarshipDetailDialog(app: ScholarshipApp, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun WelcomeScreen(authViewModel: AuthViewModel, onLoginSuccess: () -> Unit, onNavigateToSignUp: () -> Unit) {
+fun WelcomeScreen(
+    authViewModel: AuthViewModel, 
+    onLoginSuccess: (AuthResponse) -> Unit, // Pass the full response
+    onNavigateToSignUp: () -> Unit
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val authState by authViewModel.authState.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
+    val loginResponse by authViewModel.loginResponse.collectAsState()
 
     Column(
         modifier = Modifier
@@ -421,7 +448,7 @@ fun WelcomeScreen(authViewModel: AuthViewModel, onLoginSuccess: () -> Unit, onNa
 
     LaunchedEffect(authState) {
         if (authState == AuthState.AUTHENTICATED) {
-            onLoginSuccess()
+            loginResponse?.let { onLoginSuccess(it) }
         }
     }
 }

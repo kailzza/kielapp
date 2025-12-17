@@ -14,10 +14,10 @@ class ScholarshipViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage = _errorMessage.asStateFlow()
 
-    fun fetchScholarships() {
+    fun fetchScholarships(userId: String) {
         viewModelScope.launch {
             try {
-                _scholarships.value = ApiClient.apiService.getScholarships()
+                _scholarships.value = ApiClient.apiService.getScholarships(userId)
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to load scholarships: ${e.message}"
             }

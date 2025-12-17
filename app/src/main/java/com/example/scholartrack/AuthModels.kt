@@ -21,5 +21,8 @@ data class SignUpRequest(
 data class AuthResponse(
     val status: String,
     val message: String,
-    @SerializedName("user_id") val userId: String? = null
+    @SerializedName("user_id") val userId: String? = null,
+    @SerializedName("f_name") val firstName: String? = null,
+    @SerializedName("l_name") val lastName: String? = null,
+    val role: String? = null
 )
