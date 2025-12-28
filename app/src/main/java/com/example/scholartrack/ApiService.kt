@@ -22,8 +22,8 @@ interface ApiService {
 }
 
 object ApiClient {
-    // Using the correct IP address of your XAMPP server.
-    private const val BASE_URL = "http://192.168.254.115/scholarapi/"
+    // Corrected to your PC's IP address (the server), not your phone's IP.
+    private const val BASE_URL = "http://192.168.254.112/scholarapi/"
 
     val apiService: ApiService by lazy {
         val gson = GsonBuilder()

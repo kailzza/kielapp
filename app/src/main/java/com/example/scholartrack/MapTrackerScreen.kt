@@ -41,11 +41,12 @@ fun MapTrackerScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val redMarkerIcon = remember {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val markerIcon = remember(primaryColor) {
         val resourceId = context.resources.getIdentifier("marker_default", "drawable", context.packageName)
         val drawable = ContextCompat.getDrawable(context, resourceId)
         drawable?.mutate()?.apply {
-            setColorFilter(Color.Red.toArgb(), PorterDuff.Mode.SRC_IN)
+            setColorFilter(primaryColor.toArgb(), PorterDuff.Mode.SRC_IN)
         }
         drawable
     }
@@ -56,9 +57,7 @@ fun MapTrackerScreen(
             modifier = Modifier.fillMaxSize(),
             cameraState = cameraState
         ) {
-            // --- UPDATED LOGIC: Loop through API data directly ---
             scholarships.forEach { app ->
-                // Check if coordinates are valid (not 0.0, 0.0)
                 if (app.latitude != 0.0 && app.longitude != 0.0) {
                     val location = GeoPoint(app.latitude, app.longitude)
                     
@@ -66,10 +65,10 @@ fun MapTrackerScreen(
                         state = rememberMarkerState(geoPoint = location),
                         title = app.name,
                         snippet = app.provider,
-                        icon = redMarkerIcon,
+                        icon = markerIcon,
                         onClick = { 
                             cameraState.geoPoint = location
-                            cameraState.zoom = 15.0 // Slightly closer zoom
+                            cameraState.zoom = 15.0
                             onAppClick(app)
                             true 
                         }
@@ -78,7 +77,7 @@ fun MapTrackerScreen(
             }
         }
 
-        // Search Bar (No changes needed here, keeping your existing code)
+        // Search Bar
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -86,23 +85,28 @@ fun MapTrackerScreen(
                 .align(Alignment.TopCenter),
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray)
+                Icon(
+                    Icons.Default.Search, 
+                    contentDescription = null, 
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search Pangasinan...") },
+                    placeholder = { Text("Search location...") },
                     modifier = Modifier.weight(1f),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -116,7 +120,7 @@ fun MapTrackerScreen(
                 )
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Close, null, tint = Color.Gray)
+                        Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
                 }
             }
@@ -124,9 +128,6 @@ fun MapTrackerScreen(
     }
 }
 
-// ... performSearch function remains the same ...
-
-// --- Helper Logic for Search ---
 fun performSearch(
     context: Context, 
     query: String, 

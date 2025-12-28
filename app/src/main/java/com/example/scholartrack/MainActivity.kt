@@ -3,6 +3,9 @@ package com.example.scholartrack
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -33,13 +36,13 @@ import com.google.gson.annotations.SerializedName
 import com.utsman.osmandcompose.rememberCameraState
 import org.osmdroid.util.GeoPoint
 
-// --- 1. Data Models (Equivalent to types.ts) ---
+// --- 1. Data Models ---
 
 enum class AppStatus(val label: String, val color: Color) {
-    SUBMITTED("Submitted", Color(0xFF2563EB)), // Blue
-    PENDING("Pending", Color(0xFFD97706)),     // Amber
-    APPROVED("Approved", Color(0xFF059669)),   // Green
-    DECLINED("Declined", Color(0xFFDC2626))    // Red
+    SUBMITTED("Submitted", Color(0xFF2563EB)),
+    PENDING("Pending", Color(0xFFD97706)),
+    APPROVED("Approved", Color(0xFF059669)),
+    DECLINED("Declined", Color(0xFFDC2626))
 }
 
 data class ScholarshipApp(
@@ -53,23 +56,22 @@ data class ScholarshipApp(
     val longitude: Double = 0.0
 )
 
-// 1. Rename 'User' to 'Applicant'
 data class Applicant( 
     val id: String,
     val username: String,
     val email: String,
-    val role: String = "applicant", // Default role is now 'applicant'
-    val themeColor: Color = Color(0xFF2563EB),
+    val role: String = "applicant",
+    val themeColor: Color = BluePrimary,
     val avatarUri: String? = null
 )
-
-// --- 2. Main Activity & Navigation ---
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            ScholarTrackApp()
+            ScholarTrackTheme {
+                ScholarTrackApp()
+            }
         }
     }
 }
@@ -78,20 +80,24 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
     val navController = rememberNavController()
-    // 2. Update state variable
     var currentApplicant by remember { mutableStateOf<Applicant?>(null) } 
 
-    NavHost(navController = navController, startDestination = "login") {
+    NavHost(
+        navController = navController, 
+        startDestination = "login",
+        enterTransition = { fadeIn(animationSpec = tween(400)) + slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(400)) },
+        exitTransition = { fadeOut(animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(400)) },
+        popEnterTransition = { fadeIn(animationSpec = tween(400)) + slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(400)) },
+        popExitTransition = { fadeOut(animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(400)) }
+    ) {
         composable("login") {
             WelcomeScreen(
                 authViewModel = authViewModel,
                 onLoginSuccess = { response -> 
-                    // 3. Create the Applicant object
                     currentApplicant = Applicant(
                         id = response.userId ?: "0",
                         username = "${response.firstName} ${response.lastName}",
                         email = response.email ?: "applicant@example.com",
-                        // Force the role to be 'applicant' if the backend sends 'student'
                         role = if (response.role == "student") "applicant" else (response.role ?: "applicant")
                     )
                     navController.navigate("main_app") { popUpTo("login") { inclusive = true } } 
@@ -108,11 +114,15 @@ fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
         }
         composable("main_app") {
             if (currentApplicant != null) {
-                MainAppScreen(applicant = currentApplicant!!, onLogout = {
-                    authViewModel.resetState()
-                    currentApplicant = null // Clear user
-                    navController.navigate("login") { popUpTo("main_app") { inclusive = true } }
-                })
+                MainAppScreen(
+                    applicant = currentApplicant!!, 
+                    onLogout = {
+                        authViewModel.resetState()
+                        currentApplicant = null
+                        navController.navigate("login") { popUpTo("main_app") { inclusive = true } }
+                    },
+                    onUpdateApplicant = { updated -> currentApplicant = updated }
+                )
             } else {
                 CircularProgressIndicator()
                 LaunchedEffect(Unit) {
@@ -126,28 +136,26 @@ fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppScreen(
-    applicant: Applicant, // Update parameter name
+    applicant: Applicant,
     onLogout: () -> Unit, 
+    onUpdateApplicant: (Applicant) -> Unit,
     scholarshipViewModel: ScholarshipViewModel = viewModel()
 ) {
     var selectedApp by remember { mutableStateOf<ScholarshipApp?>(null) }
-    
     val scholarships by scholarshipViewModel.scholarships.collectAsState()
     val errorMessage by scholarshipViewModel.errorMessage.collectAsState()
 
-    // Update fetch call
     LaunchedEffect(applicant.id) {
         scholarshipViewModel.fetchScholarships(applicant.id)
     }
 
     val innerNavController = rememberNavController()
-
     val cameraState = rememberCameraState()
     var isMapInitialized by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (!isMapInitialized) {
-            cameraState.geoPoint = GeoPoint(15.92, 120.35) // Pangasinan Center
+            cameraState.geoPoint = GeoPoint(15.92, 120.35)
             cameraState.zoom = 10.0
             isMapInitialized = true
         }
@@ -158,53 +166,65 @@ fun MainAppScreen(
     
     Scaffold(
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(
+                containerColor = Color.White,
+                tonalElevation = 8.dp
+            ) {
                 val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Dashboard, contentDescription = null) },
-                    label = { Text("Home") },
-                    selected = currentRoute == "dashboard",
-                    onClick = { innerNavController.navigate("dashboard") }
+                val items = listOf(
+                    Triple("dashboard", Icons.Default.Dashboard, "Home"),
+                    Triple("tracker", Icons.Default.School, "Tracker"),
+                    Triple("map", Icons.Default.Map, "Map"),
+                    Triple("profile", Icons.Default.Person, "Profile")
                 )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.School, contentDescription = null) },
-                    label = { Text("Tracker") },
-                    selected = currentRoute == "tracker",
-                    onClick = { innerNavController.navigate("tracker") }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Map, contentDescription = null) },
-                    label = { Text("Map") },
-                    selected = currentRoute == "map",
-                    onClick = { innerNavController.navigate("map") }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                    label = { Text("Profile") },
-                    selected = currentRoute == "profile",
-                    onClick = { innerNavController.navigate("profile") }
-                )
+
+                items.forEach { (route, icon, label) ->
+                    NavigationBarItem(
+                        icon = { Icon(icon, contentDescription = null) },
+                        label = { Text(label) },
+                        selected = currentRoute == route,
+                        onClick = { 
+                            if (currentRoute != route) {
+                                innerNavController.navigate(route) {
+                                    popUpTo(innerNavController.graph.startDestinationId) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = Color.Gray,
+                            unselectedTextColor = Color.Gray,
+                            indicatorColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
+                        )
+                    )
+                }
             }
         }
     ) { innerPadding ->
         NavHost(
             navController = innerNavController,
             startDestination = "dashboard",
-            modifier = Modifier.padding(innerPadding).background(Color(0xFFF8FAFC))
+            modifier = Modifier.padding(innerPadding).background(Color.White),
+            enterTransition = { fadeIn(animationSpec = tween(300)) },
+            exitTransition = { fadeOut(animationSpec = tween(300)) }
         ) {
-            composable("dashboard") { 
-                DashboardScreen(
-                    applicant = applicant, 
-                    apps = scholarships, 
-                    onAppClick = onAppClick,
-                    onRefresh = { scholarshipViewModel.fetchScholarships(applicant.id) } 
-                )
-            }
+            composable("dashboard") { DashboardScreen(applicant, scholarships, onAppClick, onRefresh = { scholarshipViewModel.fetchScholarships(applicant.id) }) }
             composable("tracker") { TrackerScreen(scholarships.toMutableList(), onAppClick) }
             composable("map") { MapTrackerScreen(scholarships, cameraState, onAppClick) }
-            composable("profile") { ProfileScreen(applicant = applicant, onLogout = onLogout) }
+            composable("profile") { 
+                ProfileScreen(
+                    applicant = applicant, 
+                    onLogout = onLogout,
+                    onUpdateAvatar = { newUri -> 
+                        onUpdateApplicant(applicant.copy(avatarUri = newUri)) 
+                    }
+                ) 
+            }
         }
 
         errorMessage?.let {
@@ -214,20 +234,21 @@ fun MainAppScreen(
         }
     }
 
-    if (selectedApp != null) {
-        ScholarshipDetailDialog(app = selectedApp!!, onDismiss = onDialogDismiss)
+    AnimatedVisibility(
+        visible = selectedApp != null,
+        enter = fadeIn() + scaleIn(initialScale = 0.9f),
+        exit = fadeOut() + scaleOut(targetScale = 0.9f)
+    ) {
+        selectedApp?.let { ScholarshipDetailDialog(app = it, onDismiss = onDialogDismiss) }
     }
 }
-
-// --- 3. Screens ---
 
 @Composable
 fun DashboardScreen(applicant: Applicant, apps: List<ScholarshipApp>, onAppClick: (ScholarshipApp) -> Unit, onRefresh: () -> Unit) {
     val pendingCount = apps.count { it.status == AppStatus.PENDING || it.status == AppStatus.SUBMITTED }
     val approvedCount = apps.count { it.status == AppStatus.APPROVED }
 
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        // Header
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp).background(Color.White)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -236,30 +257,34 @@ fun DashboardScreen(applicant: Applicant, apps: List<ScholarshipApp>, onAppClick
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF1E293B)),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(applicant.username.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    applicant.username.take(1), 
+                    color = MaterialTheme.colorScheme.primary, 
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Hi, ${applicant.username}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                Text("Hi, ${applicant.username}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = DarkSlate)
                 Text("Your progress", color = Color.Gray)
             }
             
             IconButton(onClick = onRefresh) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh Data")
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh Data", tint = MaterialTheme.colorScheme.primary)
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Stats Cards
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatCard(
                 title = "Pending",
                 count = pendingCount.toString(),
-                color = Color(0xFFF59E0B),
+                color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
@@ -270,10 +295,10 @@ fun DashboardScreen(applicant: Applicant, apps: List<ScholarshipApp>, onAppClick
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         
-        Text("Recent Updates", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF0F172A))
-        Spacer(modifier = Modifier.height(12.dp))
+        Text("Recent Updates", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkSlate)
+        Spacer(modifier = Modifier.height(16.dp))
         
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(apps) { app ->
@@ -294,7 +319,7 @@ fun TrackerScreen(apps: MutableList<ScholarshipApp>, onAppClick: (ScholarshipApp
         apps.filter { it.status == selectedStatus }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(16.dp)) {
         Text("My Applications", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 16.dp)) {
@@ -302,14 +327,22 @@ fun TrackerScreen(apps: MutableList<ScholarshipApp>, onAppClick: (ScholarshipApp
                 FilterChip(
                     selected = selectedStatus == null,
                     onClick = { selectedStatus = null },
-                    label = { Text("All") }
+                    label = { Text("All") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    )
                 )
             }
             items(AppStatus.values()) { status ->
                 FilterChip(
                     selected = selectedStatus == status,
                     onClick = { selectedStatus = status },
-                    label = { Text(status.label) }
+                    label = { Text(status.label) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    )
                 )
             }
         }
@@ -322,18 +355,17 @@ fun TrackerScreen(apps: MutableList<ScholarshipApp>, onAppClick: (ScholarshipApp
     }
 }
 
-// --- 4. Helper Components ---
-
 @Composable
 fun StatCard(title: String, count: String, color: Color, modifier: Modifier = Modifier) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = color),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.2f)),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
-            Text(count, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 28.sp)
+            Text(title, color = Color.Gray, fontSize = 14.sp)
+            Text(count, color = color, fontWeight = FontWeight.Bold, fontSize = 28.sp)
         }
     }
 }
@@ -342,7 +374,8 @@ fun StatCard(title: String, count: String, color: Color, modifier: Modifier = Mo
 fun AppListItem(app: ScholarshipApp, onAppClick: (ScholarshipApp) -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, Color(0xFFF1F5F9)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onAppClick(app) }
@@ -353,8 +386,8 @@ fun AppListItem(app: ScholarshipApp, onAppClick: (ScholarshipApp) -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(app.name, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                Text(app.provider, fontSize = 14.sp, color = Color(0xFF64748B))
+                Text(app.name, fontWeight = FontWeight.SemiBold, color = DarkSlate)
+                Text(app.provider, fontSize = 14.sp, color = Color.Gray)
             }
             Surface(
                 color = app.status.color.copy(alpha = 0.1f),
@@ -365,7 +398,7 @@ fun AppListItem(app: ScholarshipApp, onAppClick: (ScholarshipApp) -> Unit) {
                     color = app.status.color,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
         }
@@ -376,91 +409,29 @@ fun AppListItem(app: ScholarshipApp, onAppClick: (ScholarshipApp) -> Unit) {
 fun ScholarshipDetailDialog(app: ScholarshipApp, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(app.name) },
+        title = { Text(app.name, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Provider: ${app.provider}", fontWeight = FontWeight.SemiBold)
-                Text("Deadline: ${app.deadline}")
-                Text("Status: ${app.status.label}")
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(app.notes)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Business, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(app.provider, fontWeight = FontWeight.Medium)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Event, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Deadline: ${app.deadline}")
+                }
+                HorizontalDivider(color = Color(0xFFF1F5F9))
+                Text(app.notes, color = Color.Gray)
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("Close")
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = MaterialTheme.colorScheme.primary)
             }
         },
-        containerColor = Color.White
+        containerColor = Color.White,
+        shape = RoundedCornerShape(24.dp)
     )
-}
-
-@Composable
-fun WelcomeScreen(
-    authViewModel: AuthViewModel, 
-    onLoginSuccess: (AuthResponse) -> Unit, // Pass the full response
-    onNavigateToSignUp: () -> Unit
-) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    val authState by authViewModel.authState.collectAsState()
-    val errorMessage by authViewModel.errorMessage.collectAsState()
-    val loginResponse by authViewModel.loginResponse.collectAsState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .padding(24.dp)
-            .imePadding(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = Icons.Default.School,
-            contentDescription = "BrightPath Logo",
-            modifier = Modifier.size(100.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "BrightPath",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(48.dp))
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
-            visualTransformation = PasswordVisualTransformation()
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        if (authState == AuthState.LOADING) {
-            CircularProgressIndicator()
-        } else {
-            Button(onClick = { authViewModel.login(email, password) }) {
-                Text(text = "Login")
-            }
-            errorMessage?.let {
-                Text(it, color = Color.Red, modifier = Modifier.padding(top = 8.dp))
-            }
-        }
-
-        TextButton(onClick = onNavigateToSignUp) {
-            Text("Don't have an account? Sign up")
-        }
-    }
-
-    LaunchedEffect(authState) {
-        if (authState == AuthState.AUTHENTICATED) {
-            loginResponse?.let { onLoginSuccess(it) }
-        }
-    }
 }

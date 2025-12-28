@@ -2,15 +2,10 @@ package com.example.scholartrack
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -29,41 +24,83 @@ fun SignUpScreen(authViewModel: AuthViewModel, onSignUpSuccess: () -> Unit, onNa
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
-            .padding(24.dp),
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp)
+            .imePadding(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Create Account", fontSize = 32.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "Create Account", 
+            fontSize = 32.sp, 
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
         Spacer(modifier = Modifier.height(48.dp))
 
-        OutlinedTextField(value = fname, onValueChange = { fname = it }, label = { Text("First Name") })
+        OutlinedTextField(
+            value = fname, 
+            onValueChange = { fname = it }, 
+            label = { Text("First Name") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary
+            )
+        )
         Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(value = lname, onValueChange = { lname = it }, label = { Text("Last Name") })
+        OutlinedTextField(
+            value = lname, 
+            onValueChange = { lname = it }, 
+            label = { Text("Last Name") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary
+            )
+        )
         Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
+        OutlinedTextField(
+            value = email, 
+            onValueChange = { email = it }, 
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary
+            )
+        )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = pass,
             onValueChange = { pass = it },
             label = { Text("Password") },
-            visualTransformation = PasswordVisualTransformation()
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary
+            )
         )
         Spacer(modifier = Modifier.height(24.dp))
 
         if (authState == AuthState.LOADING) {
-            CircularProgressIndicator()
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         } else {
-            Button(onClick = { authViewModel.signup(fname, lname, email, pass) }) {
+            Button(
+                onClick = { authViewModel.signup(fname, lname, email, pass) },
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
                 Text("Sign Up")
             }
             errorMessage?.let {
-                Text(it, color = Color.Red, modifier = Modifier.padding(top = 8.dp))
+                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
             }
         }
 
         TextButton(onClick = onNavigateToLogin) {
-            Text("Already have an account? Login")
+            Text("Already have an account? Login", color = MaterialTheme.colorScheme.secondary)
         }
     }
 
