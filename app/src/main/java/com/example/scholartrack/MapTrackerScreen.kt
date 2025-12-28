@@ -55,7 +55,10 @@ fun MapTrackerScreen(
         
         OpenStreetMap(
             modifier = Modifier.fillMaxSize(),
-            cameraState = cameraState
+            cameraState = cameraState,
+            onMapClick = { point ->
+                // Optional: handle map clicks if needed
+            }
         ) {
             scholarships.forEach { app ->
                 if (app.latitude != 0.0 && app.longitude != 0.0) {
@@ -113,6 +116,7 @@ fun MapTrackerScreen(
                     keyboardActions = KeyboardActions(onSearch = {
                         keyboardController?.hide()
                         performSearch(context, searchQuery, scope) { loc ->
+                            // Update camera state without triggering re-initialization logic
                             cameraState.geoPoint = loc
                             cameraState.zoom = 14.0
                         }

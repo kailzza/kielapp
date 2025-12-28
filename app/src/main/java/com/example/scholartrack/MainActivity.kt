@@ -150,19 +150,23 @@ fun MainAppScreen(
     }
 
     val innerNavController = rememberNavController()
-    val cameraState = rememberCameraState()
-    var isMapInitialized by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        if (!isMapInitialized) {
-            cameraState.geoPoint = GeoPoint(15.92, 120.35)
-            cameraState.zoom = 10.0
-            isMapInitialized = true
-        }
+    
+    // Initialize the camera state with a GeoPoint and Zoom level.
+    val cameraState = rememberCameraState {
+        geoPoint = GeoPoint(15.92, 120.35)
+        zoom = 10.0
     }
 
     val onAppClick = remember<(ScholarshipApp) -> Unit> { { app -> selectedApp = app } }
-    val onDialogDismiss = remember { { selectedApp = null } }
+    
+    // Updated dismiss handler to also reset the map view
+    val onDialogDismiss = remember { 
+        { 
+            selectedApp = null 
+            cameraState.geoPoint = GeoPoint(15.92, 120.35)
+            cameraState.zoom = 10.0
+        } 
+    }
     
     Scaffold(
         bottomBar = {
