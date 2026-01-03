@@ -16,14 +16,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -151,7 +155,6 @@ fun MainAppScreen(
 
     val innerNavController = rememberNavController()
     
-    // Initialize the camera state with a GeoPoint and Zoom level.
     val cameraState = rememberCameraState {
         geoPoint = GeoPoint(15.92, 120.35)
         zoom = 10.0
@@ -159,7 +162,6 @@ fun MainAppScreen(
 
     val onAppClick = remember<(ScholarshipApp) -> Unit> { { app -> selectedApp = app } }
     
-    // Updated dismiss handler to also reset the map view
     val onDialogDismiss = remember { 
         { 
             selectedApp = null 
@@ -172,22 +174,23 @@ fun MainAppScreen(
         bottomBar = {
             NavigationBar(
                 containerColor = Color.White,
-                tonalElevation = 8.dp
+                tonalElevation = 0.dp,
+                modifier = Modifier.shadow(16.dp)
             ) {
                 val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 val items = listOf(
-                    Triple("dashboard", Icons.Default.Dashboard, "Home"),
-                    Triple("tracker", Icons.Default.School, "Tracker"),
-                    Triple("map", Icons.Default.Map, "Map"),
-                    Triple("profile", Icons.Default.Person, "Profile")
+                    Triple("dashboard", Icons.Rounded.Dashboard, "Home"),
+                    Triple("tracker", Icons.Rounded.School, "Tracker"),
+                    Triple("map", Icons.Rounded.Map, "Map"),
+                    Triple("profile", Icons.Rounded.Person, "Profile")
                 )
 
                 items.forEach { (route, icon, label) ->
                     NavigationBarItem(
                         icon = { Icon(icon, contentDescription = null) },
-                        label = { Text(label) },
+                        label = { Text(label, fontWeight = FontWeight.Medium) },
                         selected = currentRoute == route,
                         onClick = { 
                             if (currentRoute != route) {
@@ -201,9 +204,9 @@ fun MainAppScreen(
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = Color.Gray,
-                            unselectedTextColor = Color.Gray,
-                            indicatorColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
+                            unselectedIconColor = Color.Gray.copy(alpha = 0.6f),
+                            unselectedTextColor = Color.Gray.copy(alpha = 0.6f),
+                            indicatorColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f) // Changed to gold/secondary highlight
                         )
                     )
                 }
@@ -232,7 +235,10 @@ fun MainAppScreen(
         }
 
         errorMessage?.let {
-            Snackbar(action = { Button(onClick = { scholarshipViewModel.fetchScholarships(applicant.id) }) { Text("Retry") } }) {
+            Snackbar(
+                action = { TextButton(onClick = { scholarshipViewModel.fetchScholarships(applicant.id) }) { Text("Retry", color = Color.White) } },
+                containerColor = MaterialTheme.colorScheme.error
+            ) {
                 Text(it)
             }
         }
@@ -252,15 +258,16 @@ fun DashboardScreen(applicant: Applicant, apps: List<ScholarshipApp>, onAppClick
     val pendingCount = apps.count { it.status == AppStatus.PENDING || it.status == AppStatus.SUBMITTED }
     val approvedCount = apps.count { it.status == AppStatus.APPROVED }
 
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp).background(Color.White)) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).background(Color.White)) {
+        Spacer(modifier = Modifier.height(24.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -268,43 +275,57 @@ fun DashboardScreen(applicant: Applicant, apps: List<ScholarshipApp>, onAppClick
                     applicant.username.take(1), 
                     color = MaterialTheme.colorScheme.primary, 
                     fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
+                    fontSize = 22.sp
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Hi, ${applicant.username}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = DarkSlate)
-                Text("Your progress", color = Color.Gray)
+                Text("Welcome back,", fontSize = 14.sp, color = Color.Gray)
+                Text(applicant.username, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = DarkSlate)
             }
             
-            IconButton(onClick = onRefresh) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh Data", tint = MaterialTheme.colorScheme.primary)
+            IconButton(
+                onClick = onRefresh,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color(0xFFF1F5F9))
+            ) {
+                Icon(Icons.Rounded.Refresh, contentDescription = "Refresh Data", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatCard(
                 title = "Pending",
                 count = pendingCount.toString(),
+                icon = Icons.Rounded.Schedule,
                 color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 title = "Approved",
                 count = approvedCount.toString(),
+                icon = Icons.Rounded.CheckCircle,
                 color = Color(0xFF10B981),
                 modifier = Modifier.weight(1f)
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(40.dp))
         
-        Text("Recent Updates", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkSlate)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Recent Activity", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkSlate)
+        }
         Spacer(modifier = Modifier.height(16.dp))
         
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
             items(apps) { app ->
                 AppListItem(app, onAppClick)
             }
@@ -323,19 +344,25 @@ fun TrackerScreen(apps: MutableList<ScholarshipApp>, onAppClick: (ScholarshipApp
         apps.filter { it.status == selectedStatus }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(16.dp)) {
-        Text("My Applications", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
+    Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(horizontal = 16.dp)) {
+        Spacer(modifier = Modifier.height(24.dp))
+        Text("My Applications", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = DarkSlate)
+        Spacer(modifier = Modifier.height(20.dp))
 
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 16.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
             item {
                 FilterChip(
                     selected = selectedStatus == null,
                     onClick = { selectedStatus = null },
-                    label = { Text("All") },
+                    label = { Text("All Applications") },
+                    shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    )
+                        selectedLabelColor = Color.White,
+                        containerColor = Color(0xFFF1F5F9),
+                        labelColor = Color.Gray
+                    ),
+                    border = null
                 )
             }
             items(AppStatus.values()) { status ->
@@ -343,15 +370,22 @@ fun TrackerScreen(apps: MutableList<ScholarshipApp>, onAppClick: (ScholarshipApp
                     selected = selectedStatus == status,
                     onClick = { selectedStatus = status },
                     label = { Text(status.label) },
+                    shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    )
+                        selectedLabelColor = Color.White,
+                        containerColor = Color(0xFFF1F5F9),
+                        labelColor = Color.Gray
+                    ),
+                    border = null
                 )
             }
         }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
             items(filteredApps) { app ->
                 AppListItem(app, onAppClick)
             }
@@ -360,16 +394,33 @@ fun TrackerScreen(apps: MutableList<ScholarshipApp>, onAppClick: (ScholarshipApp
 }
 
 @Composable
-fun StatCard(title: String, count: String, color: Color, modifier: Modifier = Modifier) {
+fun StatCard(
+    title: String, 
+    count: String, 
+    icon: ImageVector,
+    color: Color, 
+    modifier: Modifier = Modifier
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, Color(0xFFF1F5F9)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, color = Color.Gray, fontSize = 14.sp)
-            Text(count, color = color, fontWeight = FontWeight.Bold, fontSize = 28.sp)
+        Column(modifier = Modifier.padding(20.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(color.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(title, color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(count, color = DarkSlate, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp)
         }
     }
 }
@@ -378,6 +429,7 @@ fun StatCard(title: String, count: String, color: Color, modifier: Modifier = Mo
 fun AppListItem(app: ScholarshipApp, onAppClick: (ScholarshipApp) -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, Color(0xFFF1F5F9)),
         modifier = Modifier
@@ -386,23 +438,51 @@ fun AppListItem(app: ScholarshipApp, onAppClick: (ScholarshipApp) -> Unit) {
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(app.name, fontWeight = FontWeight.SemiBold, color = DarkSlate)
-                Text(app.provider, fontSize = 14.sp, color = Color.Gray)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.School,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
             }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    app.name,
+                    fontWeight = FontWeight.Bold,
+                    color = DarkSlate,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    app.provider,
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             Surface(
-                color = app.status.color.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(50),
+                color = app.status.color.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(10.dp),
             ) {
                 Text(
                     text = app.status.label,
                     color = app.status.color,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
         }
@@ -413,29 +493,51 @@ fun AppListItem(app: ScholarshipApp, onAppClick: (ScholarshipApp) -> Unit) {
 fun ScholarshipDetailDialog(app: ScholarshipApp, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(app.name, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
+        title = { 
+            Text(
+                app.name, 
+                color = DarkSlate, 
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 22.sp,
+                lineHeight = 28.sp
+            ) 
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Business, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Gray)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(app.provider, fontWeight = FontWeight.Medium)
+                    Icon(Icons.Rounded.Business, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(app.provider, fontWeight = FontWeight.Bold, color = DarkSlate)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Event, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Gray)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Deadline: ${app.deadline}")
+                    Icon(Icons.Rounded.EventAvailable, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Deadline: ${app.deadline}", color = Color.Gray, fontWeight = FontWeight.Medium)
                 }
-                HorizontalDivider(color = Color(0xFFF1F5F9))
-                Text(app.notes, color = Color.Gray)
+                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                Column {
+                    Text("Notes", fontWeight = FontWeight.Bold, color = DarkSlate, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        app.notes.ifEmpty { "No additional notes provided for this scholarship." }, 
+                        color = Color.Gray,
+                        lineHeight = 20.sp,
+                        fontSize = 14.sp
+                    )
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close", color = MaterialTheme.colorScheme.primary)
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
+            ) {
+                Text("Close", fontWeight = FontWeight.Bold)
             }
         },
         containerColor = Color.White,
-        shape = RoundedCornerShape(24.dp)
+        shape = RoundedCornerShape(32.dp),
+        modifier = Modifier.padding(16.dp)
     )
 }

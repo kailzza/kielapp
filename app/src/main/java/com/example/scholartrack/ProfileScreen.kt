@@ -130,14 +130,6 @@ fun ProfileScreen(
             ) {
                 Column {
                     ProfileMenuItem(icon = Icons.Default.Email, label = "Email", value = applicant.email)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                    
-                    // Show Role as 'Applicant'
-                    ProfileMenuItem(
-                        icon = Icons.Default.Person, 
-                        label = "Account Type", 
-                        value = applicant.role.replaceFirstChar { it.uppercase() } // Displays "Applicant"
-                    )
                 }
             }
 
