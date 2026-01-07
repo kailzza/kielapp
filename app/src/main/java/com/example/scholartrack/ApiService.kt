@@ -23,7 +23,7 @@ interface ApiService {
 
 object ApiClient {
     // Corrected to your PC's IP address (the server), not your phone's IP.
-    private const val BASE_URL = "http://192.168.254.112/scholarapi/"
+    private const val BASE_URL = "http://192.168.100.100/scholarapi/"
 
     val apiService: ApiService by lazy {
         val gson = GsonBuilder()

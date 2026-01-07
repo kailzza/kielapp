@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,7 +35,8 @@ import org.osmdroid.util.GeoPoint
 fun MapTrackerScreen(
     scholarships: List<ScholarshipApp>,
     cameraState: CameraState,
-    onAppClick: (ScholarshipApp) -> Unit
+    onAppClick: (ScholarshipApp) -> Unit,
+    onRefresh: () -> Unit // Added refresh callback
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -52,30 +54,28 @@ fun MapTrackerScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        
         OpenStreetMap(
             modifier = Modifier.fillMaxSize(),
-            cameraState = cameraState,
-            onMapClick = { point ->
-                // Optional: handle map clicks if needed
-            }
+            cameraState = cameraState
         ) {
             scholarships.forEach { app ->
                 if (app.latitude != 0.0 && app.longitude != 0.0) {
                     val location = GeoPoint(app.latitude, app.longitude)
                     
-                    Marker(
-                        state = rememberMarkerState(geoPoint = location),
-                        title = app.name,
-                        snippet = app.provider,
-                        icon = markerIcon,
-                        onClick = { 
-                            cameraState.geoPoint = location
-                            cameraState.zoom = 15.0
-                            onAppClick(app)
-                            true 
-                        }
-                    )
+                    key(app.id, app.latitude, app.longitude) {
+                        Marker(
+                            state = rememberMarkerState(geoPoint = location),
+                            title = app.name,
+                            snippet = app.provider,
+                            icon = markerIcon,
+                            onClick = { 
+                                cameraState.geoPoint = location
+                                cameraState.zoom = 15.0
+                                onAppClick(app)
+                                true 
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -116,7 +116,6 @@ fun MapTrackerScreen(
                     keyboardActions = KeyboardActions(onSearch = {
                         keyboardController?.hide()
                         performSearch(context, searchQuery, scope) { loc ->
-                            // Update camera state without triggering re-initialization logic
                             cameraState.geoPoint = loc
                             cameraState.zoom = 14.0
                         }
@@ -128,6 +127,18 @@ fun MapTrackerScreen(
                     }
                 }
             }
+        }
+
+        // --- NEW: Refresh FAB ---
+        FloatingActionButton(
+            onClick = onRefresh,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 80.dp, end = 16.dp), // Padded above zoom controls
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = Color.White
+        ) {
+            Icon(Icons.Rounded.Refresh, contentDescription = "Refresh Map Data")
         }
     }
 }

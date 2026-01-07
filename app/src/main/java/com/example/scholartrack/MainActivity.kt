@@ -56,8 +56,8 @@ data class ScholarshipApp(
     @SerializedName("deadline_date") val deadline: String,
     @SerializedName("application_status") var status: AppStatus,
     @SerializedName("scholarship_notes") val notes: String = "",
-    val latitude: Double = 0.0,
-    val longitude: Double = 0.0
+    @SerializedName("latitude") val latitude: Double = 0.0,
+    @SerializedName("longitude") val longitude: Double = 0.0
 )
 
 data class Applicant( 
@@ -206,7 +206,7 @@ fun MainAppScreen(
                             selectedTextColor = MaterialTheme.colorScheme.primary,
                             unselectedIconColor = Color.Gray.copy(alpha = 0.6f),
                             unselectedTextColor = Color.Gray.copy(alpha = 0.6f),
-                            indicatorColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f) // Changed to gold/secondary highlight
+                            indicatorColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)
                         )
                     )
                 }
@@ -222,7 +222,14 @@ fun MainAppScreen(
         ) {
             composable("dashboard") { DashboardScreen(applicant, scholarships, onAppClick, onRefresh = { scholarshipViewModel.fetchScholarships(applicant.id) }) }
             composable("tracker") { TrackerScreen(scholarships.toMutableList(), onAppClick) }
-            composable("map") { MapTrackerScreen(scholarships, cameraState, onAppClick) }
+            composable("map") { 
+                MapTrackerScreen(
+                    scholarships = scholarships, 
+                    cameraState = cameraState, 
+                    onAppClick = onAppClick,
+                    onRefresh = { scholarshipViewModel.fetchScholarships(applicant.id) } // Pass refresh logic here
+                ) 
+            }
             composable("profile") { 
                 ProfileScreen(
                     applicant = applicant, 
