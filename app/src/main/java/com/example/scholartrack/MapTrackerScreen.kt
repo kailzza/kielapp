@@ -45,8 +45,13 @@ fun MapTrackerScreen(
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val markerIcon = remember(primaryColor) {
+        // Try to find 'marker_default', fallback to a standard system icon if missing
         val resourceId = context.resources.getIdentifier("marker_default", "drawable", context.packageName)
-        val drawable = ContextCompat.getDrawable(context, resourceId)
+        
+        // OPTIMIZATION: Safety check to prevent crash if file is missing
+        val finalResId = if (resourceId != 0) resourceId else android.R.drawable.ic_menu_mylocation
+        
+        val drawable = ContextCompat.getDrawable(context, finalResId)
         drawable?.mutate()?.apply {
             setColorFilter(primaryColor.toArgb(), PorterDuff.Mode.SRC_IN)
         }

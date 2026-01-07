@@ -117,9 +117,10 @@ fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
             )
         }
         composable("main_app") {
-            if (currentApplicant != null) {
+            val applicant = currentApplicant
+            if (applicant != null) {
                 MainAppScreen(
-                    applicant = currentApplicant!!, 
+                    applicant = applicant, 
                     onLogout = {
                         authViewModel.resetState()
                         currentApplicant = null
@@ -128,7 +129,9 @@ fun ScholarTrackApp(authViewModel: AuthViewModel = viewModel()) {
                     onUpdateApplicant = { updated -> currentApplicant = updated }
                 )
             } else {
-                CircularProgressIndicator()
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
                 LaunchedEffect(Unit) {
                      navController.navigate("login") { popUpTo("main_app") { inclusive = true } }
                 }
@@ -227,7 +230,7 @@ fun MainAppScreen(
                     scholarships = scholarships, 
                     cameraState = cameraState, 
                     onAppClick = onAppClick,
-                    onRefresh = { scholarshipViewModel.fetchScholarships(applicant.id) } // Pass refresh logic here
+                    onRefresh = { scholarshipViewModel.fetchScholarships(applicant.id) }
                 ) 
             }
             composable("profile") { 
@@ -262,7 +265,7 @@ fun MainAppScreen(
 
 @Composable
 fun DashboardScreen(applicant: Applicant, apps: List<ScholarshipApp>, onAppClick: (ScholarshipApp) -> Unit, onRefresh: () -> Unit) {
-    val pendingCount = apps.count { it.status == AppStatus.PENDING || it.status == AppStatus.SUBMITTED }
+    val pendingCount = apps.count { it.status == AppStatus.SUBMITTED  || it.status == AppStatus.PENDING }
     val approvedCount = apps.count { it.status == AppStatus.APPROVED }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).background(Color.White)) {
