@@ -152,8 +152,9 @@ fun MainAppScreen(
     val scholarships by scholarshipViewModel.scholarships.collectAsState()
     val errorMessage by scholarshipViewModel.errorMessage.collectAsState()
 
+    // START REAL-TIME POLLING
     LaunchedEffect(applicant.id) {
-        scholarshipViewModel.fetchScholarships(applicant.id)
+        scholarshipViewModel.startPolling(applicant.id)
     }
 
     val innerNavController = rememberNavController()
@@ -223,14 +224,14 @@ fun MainAppScreen(
             enterTransition = { fadeIn(animationSpec = tween(300)) },
             exitTransition = { fadeOut(animationSpec = tween(300)) }
         ) {
-            composable("dashboard") { DashboardScreen(applicant, scholarships, onAppClick, onRefresh = { scholarshipViewModel.fetchScholarships(applicant.id) }) }
+            composable("dashboard") { DashboardScreen(applicant, scholarships, onAppClick, onRefresh = { scholarshipViewModel.refresh(applicant.id) }) }
             composable("tracker") { TrackerScreen(scholarships.toMutableList(), onAppClick) }
             composable("map") { 
                 MapTrackerScreen(
                     scholarships = scholarships, 
                     cameraState = cameraState, 
                     onAppClick = onAppClick,
-                    onRefresh = { scholarshipViewModel.fetchScholarships(applicant.id) }
+                    onRefresh = { scholarshipViewModel.refresh(applicant.id) }
                 ) 
             }
             composable("profile") { 
@@ -246,7 +247,7 @@ fun MainAppScreen(
 
         errorMessage?.let {
             Snackbar(
-                action = { TextButton(onClick = { scholarshipViewModel.fetchScholarships(applicant.id) }) { Text("Retry", color = Color.White) } },
+                action = { TextButton(onClick = { scholarshipViewModel.refresh(applicant.id) }) { Text("Retry", color = Color.White) } },
                 containerColor = MaterialTheme.colorScheme.error
             ) {
                 Text(it)
@@ -265,7 +266,7 @@ fun MainAppScreen(
 
 @Composable
 fun DashboardScreen(applicant: Applicant, apps: List<ScholarshipApp>, onAppClick: (ScholarshipApp) -> Unit, onRefresh: () -> Unit) {
-    val pendingCount = apps.count { it.status == AppStatus.SUBMITTED  || it.status == AppStatus.PENDING }
+    val pendingCount = apps.count { it.status == AppStatus.PENDING || it.status == AppStatus.SUBMITTED }
     val approvedCount = apps.count { it.status == AppStatus.APPROVED }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).background(Color.White)) {
